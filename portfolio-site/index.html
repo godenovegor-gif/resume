@@ -1,0 +1,702 @@
+<title>Egor Godenov</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout concept: a Windows 98 desktop in Edgerunners colors. Icons on the left, draggable windows, taskbar with clock, language switch and a mini player. */
+:root {
+  --font-ui: "Chakra Petch", Tahoma, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Courier New", monospace;
+  --desktop: #008080; --grid: transparent; --scan: transparent;
+  --win: #c0c0c0; --win-fg: #000; --muted: #404040;
+  --hi: #ffffff; --lo: #404040; --bar-a: #000080; --bar-b: #1084d0; --bar-c: #1084d0;
+  --bar-fg: #ffffff; --bar-off-a: #808080; --bar-off-b: #a0a0a0;
+  --accent: #000080; --accent-fg: #fff; --link: #0000cc;
+  --field: #ffffff; --task: #c0c0c0; --sel: rgba(0,0,128,.35); --icon-fg: #ffffff;
+}
+:root[data-theme="cyberpunk"] {
+  --desktop: radial-gradient(ellipse at 70% 110%, #3a0f4f 0%, transparent 55%), linear-gradient(180deg, #07070f 0%, #120626 60%, #1c0a33 100%);
+  --grid: rgba(0, 240, 255, .16); --scan: rgba(0,0,0,.07);
+  --win: #14141f; --win-fg: #d7f9ff; --muted: #8fa3b5; --hi: #3a3a55; --lo: #07070c;
+  --bar-a: #ff2a6d; --bar-b: #5b2bb0; --bar-c: #00d9e8; --bar-off-a: #2b2b3d; --bar-off-b: #1c1c2a;
+  --accent: #fcee0a; --accent-fg: #101010; --link: #00f0ff; --field: #0a0a12; --task: #101019; --sel: rgba(255,42,109,.35);
+}
+:root[data-theme="lilac"] {
+  --desktop: linear-gradient(160deg, #c8b2db, #a58ac6); --win: #e9e4f7; --win-fg: #1d1530; --muted: #5b4f78;
+  --hi: #ffffff; --lo: #6b52a0; --bar-a: #9370db; --bar-b: #663399; --bar-c: #663399;
+  --bar-off-a: #a9a1bd; --bar-off-b: #c3bdd3; --accent: #663399; --accent-fg: #fff; --link: #4b22a0;
+  --field: #fbf9ff; --task: #e9e4f7; --sel: rgba(102,51,153,.35);
+}
+:root[data-theme="forest"] {
+  --desktop: linear-gradient(180deg, #14532d, #0b3320); --win: #e4f2e6; --win-fg: #0d2415; --muted: #3f5f49;
+  --hi: #ffffff; --lo: #1d4a2b; --bar-a: #1f7a3a; --bar-b: #0b4d22; --bar-c: #0b4d22;
+  --bar-off-a: #8da392; --bar-off-b: #adc0b1; --accent: #0b4d22; --accent-fg: #fff; --link: #0a5a28;
+  --field: #f8fff9; --task: #e4f2e6; --sel: rgba(11,77,34,.35);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; overflow: hidden; background: #008080; color: var(--win-fg); font-family: var(--font-ui); font-size: 14px; }
+button, input, textarea { font: inherit; color: inherit; }
+a { color: var(--link); }
+:focus-visible { outline: 2px dashed var(--accent); outline-offset: 1px; }
+
+.os { position: relative; height: 100%; display: flex; flex-direction: column; background: var(--task); }
+.desktop { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--desktop); }
+.desktop::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 48px 48px; -webkit-mask-image: linear-gradient(180deg, transparent 30%, #000 100%); mask-image: linear-gradient(180deg, transparent 30%, #000 100%); }
+.desktop::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5000;
+  background: repeating-linear-gradient(0deg, transparent 0 2px, var(--scan) 2px 4px); }
+
+
+.icons { position: absolute; top: 12px; left: 12px; display: grid; gap: 10px; z-index: 20; }
+.icon { width: 82px; padding: 6px 2px; display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 1px solid transparent; cursor: pointer; color: var(--icon-fg); }
+.icon:hover, .icon:focus-visible { background: var(--sel); border: 1px dotted #fff; }
+.icon svg { width: 34px; height: 34px; padding: 5px; background: var(--win); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); color: var(--accent); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: square; }
+.icon span { font-size: 12px; line-height: 1.15; text-align: center; text-shadow: 1px 1px 0 #000; }
+
+.win { position: absolute; left: var(--x); top: var(--y); width: var(--w); height: var(--h); min-width: 260px; min-height: 160px; display: none; flex-direction: column;
+  background: var(--win); color: var(--win-fg); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); box-shadow: 3px 3px 0 rgba(0,0,0,.55); resize: both; overflow: hidden; z-index: 100; }
+.win.open { display: flex; }
+.win.max { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; resize: none; }
+.bar { display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 6px; background: linear-gradient(90deg, var(--bar-off-a), var(--bar-off-b)); color: #cfcfdc; cursor: grab; user-select: none; touch-action: none; flex: none; }
+.win.active .bar { background: linear-gradient(90deg, var(--bar-a), var(--bar-b) 55%, var(--bar-c)); color: var(--bar-fg); }
+.bar svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; flex: none; }
+.bar .ttl { flex: 1; font-weight: 600; font-size: 13px; letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wb { width: 22px; height: 20px; display: grid; place-items: center; padding: 0; background: var(--win); color: var(--win-fg); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); cursor: pointer; font-size: 13px; line-height: 1; }
+.wb:active { border-color: var(--lo) var(--hi) var(--hi) var(--lo); }
+.body { flex: 1; min-height: 0; overflow: auto; padding: 14px; }
+.body.flush { padding: 0; }
+.body h2 { margin: 0 0 2px; font-size: 22px; line-height: 1.15; text-wrap: balance; }
+.body h3 { margin: 16px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); }
+.body p { margin: 0 0 10px; line-height: 1.55; max-width: 62ch; }
+.body ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; line-height: 1.45; }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+.muted { color: var(--muted); }
+
+.btn { padding: 5px 12px; background: var(--win); color: var(--win-fg); cursor: pointer; border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); min-height: 28px; }
+.btn:active, .btn.on { border-color: var(--lo) var(--hi) var(--hi) var(--lo); }
+.btn.primary { background: var(--accent); color: var(--accent-fg); font-weight: 700; }
+.field { width: 100%; padding: 6px 8px; background: var(--field); color: var(--win-fg); border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo); }
+.inset { background: var(--field); border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo); padding: 10px; }
+
+/* about */
+.about { display: grid; grid-template-columns: minmax(0, 250px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.photo { width: 100%; position: relative; display: block; background: var(--field); border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo); cursor: pointer; overflow: hidden; padding: 0; color: var(--muted); }
+.photo img { display: block; width: 100%; height: auto; }
+.photo svg { width: 64px; height: 64px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.photo small { position: absolute; bottom: 6px; left: 6px; right: 6px; font-size: 10px; text-align: center; line-height: 1.2; }
+.photo.has small { display: none; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tag { padding: 2px 8px; font-size: 12px; font-family: var(--font-mono); background: var(--field); border: 1px solid var(--lo); }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 10px 0 0; font-size: 13px; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+
+/* experience */
+details.job { margin-bottom: 8px; border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); }
+details.job summary { cursor: pointer; padding: 8px 10px; display: grid; gap: 2px; list-style: none; background: var(--field); }
+details.job summary::-webkit-details-marker { display: none; }
+details.job summary b { font-size: 15px; }
+details.job summary span { font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+details.job[open] summary { background: var(--accent); color: var(--accent-fg); }
+details.job[open] summary span { color: inherit; opacity: .8; }
+details.job ul { padding: 10px 10px 10px 28px; }
+
+/* skills */
+.grp { margin-bottom: 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 3px 9px; font-size: 12px; background: var(--field); border: 1px solid var(--lo); }
+
+/* tools */
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.quick { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+.quick .btn { padding: 2px 8px; min-height: 24px; font-family: var(--font-mono); font-size: 12px; }
+.result { min-height: 120px; font-size: 13px; line-height: 1.5; }
+.result .code { font-family: var(--font-mono); font-size: 34px; font-weight: 600; color: var(--accent); line-height: 1; }
+.result .cls { font-family: var(--font-mono); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+textarea.field { font-family: var(--font-mono); font-size: 12px; line-height: 1.5; resize: none; height: 100%; border: 0; }
+
+/* player */
+.pl { display: flex; flex-direction: column; gap: 10px; padding: 12px; height: 100%; }
+.lcd { background: #04080a; color: #00f0ff; font-family: var(--font-mono); padding: 8px 10px; border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo); }
+.lcd .now { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fcee0a; }
+.lcd .tm { display: flex; justify-content: space-between; font-size: 11px; margin-top: 2px; }
+canvas.viz { width: 100%; height: 56px; display: block; background: #04080a; border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo); }
+input[type=range] { width: 100%; accent-color: var(--bar-a); }
+.ctl { display: flex; gap: 6px; align-items: center; }
+.ctl .btn { min-width: 40px; }
+.vol { width: 90px; margin-left: auto; }
+.list { list-style: none; margin: 0; padding: 0; background: var(--field); border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo); flex: 1; overflow: auto; }
+.list li { margin: 0; }
+.list button { display: flex; width: 100%; text-align: left; gap: 8px; padding: 6px 8px; background: none; border: 0; cursor: pointer; font-size: 13px; }
+.list button:hover { background: var(--sel); }
+.list button[aria-current=true] { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.list .n { font-family: var(--font-mono); opacity: .7; }
+
+/* contact + themes */
+.copyline { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.copyline .inset { flex: 1; min-width: 180px; font-family: var(--font-mono); font-size: 13px; padding: 6px 8px; overflow-wrap: anywhere; }
+.opt { display: flex; gap: 8px; align-items: center; padding: 6px 4px; cursor: pointer; }
+.swatch { width: 54px; height: 14px; border: 1px solid #000; }
+
+/* taskbar */
+.task { flex: none; display: flex; align-items: stretch; gap: 4px; padding: 3px; background: var(--task); border-top: 2px solid var(--hi); z-index: 3000; position: relative; min-height: 38px; }
+.start { display: flex; align-items: center; gap: 6px; font-weight: 700; padding: 0 12px; }
+.start svg { width: 16px; height: 16px; fill: currentColor; }
+.tasks { flex: 1; min-width: 0; display: flex; gap: 4px; overflow: hidden; }
+.tasks .btn { max-width: 150px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 10px; font-size: 13px; }
+.tray { display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo); font-family: var(--font-mono); font-size: 12px; }
+.tray .btn { padding: 0 8px; min-height: 22px; font-size: 12px; }
+.menu { position: absolute; left: 3px; bottom: 40px; width: 230px; display: none; z-index: 3001; background: var(--win); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); box-shadow: 3px 3px 0 rgba(0,0,0,.55); }
+.menu.open { display: flex; }
+.menu .side { width: 28px; background: linear-gradient(0deg, var(--bar-a), var(--bar-b)); color: #fff; writing-mode: vertical-rl; transform: rotate(180deg); padding: 8px 4px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; }
+.menu .items { flex: 1; padding: 3px; }
+.menu button { display: flex; gap: 10px; align-items: center; width: 100%; padding: 7px 8px; background: none; border: 0; cursor: pointer; text-align: left; }
+.menu button:hover, .menu button:focus-visible { background: var(--bar-b); color: #fff; }
+.menu svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.menu hr { border: 0; border-top: 1px solid var(--lo); border-bottom: 1px solid var(--hi); margin: 3px 2px; }
+
+.modal { position: absolute; inset: 0; display: none; place-items: center; background: rgba(0,0,0,.6); z-index: 4000; }
+.modal.open { display: grid; }
+.dlg { width: min(360px, calc(100% - 32px)); background: var(--win); color: var(--win-fg); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); box-shadow: 4px 4px 0 #000; }
+.dlg .body { display: grid; gap: 12px; }
+
+@media (max-width: 700px) {
+  .icons { grid-template-columns: repeat(4, 1fr); right: 8px; left: 8px; gap: 6px; }
+  .icon { width: auto; }
+  .win { left: 6px !important; top: 6px !important; width: calc(100% - 12px) !important; height: calc(100% - 12px) !important; resize: none; }
+  .about { grid-template-columns: 1fr; }
+  .photo { max-width: 260px; }
+  .tray .clock-lbl { display: none; }
+  .start span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="os" id="os">
+  <div class="desktop" id="desktop">
+    <nav class="icons" id="icons" aria-label="Desktop"></nav>
+
+    <section class="win" id="w-about" style="--x:110px;--y:16px;--w:780px;--h:560px" data-icon="user">
+      <div class="body" id="about"></div>
+    </section>
+    <section class="win" id="w-exp" style="--x:170px;--y:56px;--w:600px;--h:470px" data-icon="folder">
+      <div class="body" id="exp"></div>
+    </section>
+    <section class="win" id="w-skills" style="--x:220px;--y:40px;--w:580px;--h:470px" data-icon="chip">
+      <div class="body" id="skills"></div>
+    </section>
+    <section class="win" id="w-tools" style="--x:260px;--y:70px;--w:480px;--h:430px" data-icon="terminal">
+      <div class="body">
+        <h3 data-i="http_h" style="margin-top:0"></h3>
+        <p class="muted" data-i="http_p"></p>
+        <div class="row"><input class="field mono" id="code" inputmode="numeric" maxlength="3" placeholder="404" aria-label="HTTP status" style="width:110px"><button class="btn primary" id="lookup" data-i="http_btn"></button></div>
+        <div class="quick" id="quick"></div>
+        <div class="inset result" id="result" aria-live="polite"></div>
+      </div>
+    </section>
+    <section class="win" id="w-pong" style="--x:340px;--y:50px;--w:400px;--h:360px" data-icon="gamepad">
+      <div class="body flush" style="display:flex;flex-direction:column;background:#000">
+        <canvas id="pongc" width="380" height="270" style="width:100%;flex:1;min-height:0;display:block;touch-action:none" aria-label="Pong"></canvas>
+        <div class="row" style="padding:6px 8px;background:var(--win);justify-content:space-between"><span class="mono" id="pongscore">0 : 0</span><span class="mono muted" data-i="pong_h"></span></div>
+      </div>
+    </section>
+    <section class="win" id="w-notes" style="--x:300px;--y:90px;--w:460px;--h:420px" data-icon="note">
+      <div class="body flush" style="display:flex;flex-direction:column">
+        <div style="flex:1;min-height:0"><textarea class="field" id="note" spellcheck="false" aria-label="bug_report.txt"></textarea></div>
+        <div class="row" style="padding:8px;border-top:2px solid var(--hi)"><button class="btn primary" id="copynote" data-i="copy"></button><span class="muted mono" id="copymsg"></span></div>
+      </div>
+    </section>
+    <section class="win" id="w-player" style="--x:calc(100% - 410px);--y:24px;--w:380px;--h:520px" data-icon="music">
+      <div class="body flush">
+        <div class="pl">
+          <div class="lcd"><div class="now" id="now">—</div><div class="tm"><span id="cur">0:00</span><span id="dur">0:00</span></div></div>
+          <canvas class="viz" id="viz" width="340" height="56"></canvas>
+          <input type="range" id="seek" min="0" max="1000" value="0" aria-label="Seek">
+          <div class="ctl">
+            <button class="btn" id="prev" aria-label="Previous">⏮</button>
+            <button class="btn primary" id="play" aria-label="Play">▶</button>
+            <button class="btn" id="next" aria-label="Next">⏭</button>
+            <input type="range" class="vol" id="vol" min="0" max="100" value="80" aria-label="Volume">
+          </div>
+          <ul class="list" id="playlist"></ul>
+          <audio id="audio" preload="metadata"></audio>
+        </div>
+      </div>
+    </section>
+    <section class="win" id="w-contact" style="--x:240px;--y:110px;--w:480px;--h:360px" data-icon="mail">
+      <div class="body" id="contact"></div>
+    </section>
+    <section class="win" id="w-themes" style="--x:330px;--y:60px;--w:380px;--h:370px" data-icon="palette">
+      <div class="body">
+        <h3 data-i="theme_h" style="margin-top:0"></h3>
+        <div id="themelist"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="menu" id="menu">
+    <div class="side">Windows 98</div>
+    <div class="items" id="menuitems"></div>
+  </div>
+
+  <div class="task">
+    <button class="btn start" id="start"><svg viewBox="0 0 16 16"><path d="M1 2.5l6-1v6H1zM8 1.4L15 .5v7H8zM1 8.5h6v6l-6-1zM8 8.5h7v7l-7-1z"/></svg><span>Start</span></button>
+    <div class="tasks" id="tasks"></div>
+    <div class="tray"><button class="btn" id="lang" aria-label="Language">RU / EN</button><span id="clock">--:--</span></div>
+  </div>
+
+  <div class="modal" id="shut" role="dialog" aria-modal="true">
+    <div class="dlg">
+      <div class="bar"><span class="ttl" data-i="shut_t"></span></div>
+      <div class="body"><p data-i="shut_p" style="margin:0"></p><div class="row" style="justify-content:flex-end"><button class="btn primary" id="restart" data-i="shut_b"></button></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var PHOTO_URL = "hero.jpg";
+  var ICONS = {
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/>',
+    folder: '<path d="M3 6h6l2 2h10v11H3z"/>',
+    chip: '<rect x="6" y="6" width="12" height="12"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
+    terminal: '<rect x="3" y="4" width="18" height="16"/><path d="M7 9l3 3-3 3M13 15h4"/>',
+    music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+    mail: '<rect x="3" y="5" width="18" height="14"/><path d="M3 6l9 7 9-7"/>',
+    palette: '<circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16" cy="10" r="1"/>',
+    note: '<path d="M5 3h10l4 4v14H5z"/><path d="M8 11h8M8 15h8"/>',
+    gamepad: '<rect x="2" y="7" width="20" height="11"/><path d="M7 10v5M4.5 12.5h5"/><circle cx="16" cy="11.5" r="1"/><circle cx="18.5" cy="14" r="1"/>',
+    power: '<path d="M12 3v9"/><path d="M6.5 6.5a8 8 0 1 0 11 0"/>'
+  };
+  function svg(name) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICONS[name] + '</svg>'; }
+
+  var APPS = [
+    { id: "about", icon: "user" }, { id: "exp", icon: "folder" }, { id: "skills", icon: "chip" },
+    { id: "tools", icon: "terminal" }, { id: "notes", icon: "note" }, { id: "contact", icon: "mail" },
+    { id: "themes", icon: "palette" }, { id: "player", icon: "music" }, { id: "pong", icon: "gamepad" }
+  ];
+
+  var D = {
+    en: {
+      t_about: "About Me", t_exp: "Experience", t_skills: "Skills", t_pong: "Pong", s_pong: "Pong", t_tools: "HTTP Lookup", t_notes: "bug_report.txt", t_player: "Player", t_contact: "Contact", t_themes: "Display Properties",
+      s_about: "About", s_exp: "Experience", s_skills: "Skills", s_tools: "HTTP Lookup", s_notes: "Bug Report", s_player: "Player", s_contact: "Contact", s_themes: "Themes",
+      name: "Egor Godenov", role: "Customer Support · Technical Support L1 · iGaming & Operations",
+      sum: ["Customer support and operations specialist with experience in banking, iGaming and performance marketing. I answer customers, solve account and payment problems, document cases, escalate what needs a deeper look and help internal teams with access and operational requests.",
+            "I am building technical troubleshooting skills: browser DevTools, HTTP, REST APIs, JSON and SQL basics. My goal is Technical Support L1 or a more technical support role in an international company."],
+      k_loc: "Location", k_lang: "Languages", k_sched: "Schedule", k_work: "Open to",
+      v_loc: "Da Nang, Vietnam", v_lang: "Russian (native), English (B1–B2)", v_sched: "Remote, shifts and night shifts OK", v_work: "Support L1, iGaming, operations support",
+      mood: "now playing:",
+      jobs: [
+        { r: "Internal Operations Support Specialist", o: "Confidential performance marketing team", y: "2025–2026", i: [
+          "Supported daily workflows of media buying, account management and design teams",
+          "Processed requests for account provisioning, replacements and access permissions",
+          "Resolved issues with account allocation, access and resource availability",
+          "Worked in internal admin panels to handle account and operational requests",
+          "Gave teams access to accounts, tools and design resources",
+          "Handled internal requests and kept work moving across several departments",
+          "Purchased operational supplies and consumables when required"] },
+        { r: "Customer Support Specialist, iGaming", o: "Confidential iGaming project", y: "2022–2024", i: [
+          "Handled customers in online chat and on occasional phone calls",
+          "Solved account questions, deposits, payment issues and missing transactions",
+          "Explained promotions, promo codes and special offers",
+          "Supported customer re-engagement and helped users understand offers",
+          "Investigated reported issues and collected the data to find the cause",
+          "Created or escalated internal requests when a deeper investigation was needed",
+          "Took on more technical account and platform cases over time"] },
+        { r: "Banking Support Specialist", o: "Tinkoff Bank", y: "2021–2022", i: [
+          "Started with warm leads, explaining business acquiring services and terms",
+          "Moved to customer support in online chat",
+          "Advised on applications, bank cards, credit cards and Tinkoff Business",
+          "Followed procedures and internal workflows in a structured banking environment"] }
+      ],
+      groups: [
+        { n: "Customer support", c: ["Ticket management", "Customer communication", "Case documentation", "Escalation workflows", "CRM / helpdesk basics"] },
+        { n: "Technical troubleshooting", c: ["Chrome DevTools: Console, Network", "HTTP status codes", "Browser cache and cookies", "Error investigation"] },
+        { n: "API and data", c: ["REST API", "JSON", "Postman", "SQL basics"] },
+        { n: "Operations", c: ["Internal admin panels", "Account and access management", "Google Sheets / Excel", "Cross-team requests"] },
+        { n: "Documentation and tools", c: ["Jira", "Knowledge base articles", "Slack", "Telegram", "Discord"] },
+        { n: "AI-assisted workflow", c: ["Technical research", "Error analysis", "Reply drafting", "Structured bug reports"] }
+      ],
+      strengths_h: "Strengths",
+      strengths: ["Clear written communication", "Structured problem solving", "Attention to detail", "Fast learner", "Calm with customers", "Works well across teams"],
+      http_h: "HTTP status lookup", http_p: "Type a status code to see what it usually means and what support should check first.", http_btn: "Look up",
+      http_none: "Unknown code. Try one of the quick buttons.",
+      http: {
+        200: ["OK", "Success", "Request worked. If the customer still reports a problem, check what they expected versus what the page shows."],
+        201: ["Created", "Success", "A record was created. Confirm it appears in the account or admin panel."],
+        204: ["No Content", "Success", "Action succeeded with no body. Nothing to show is normal here."],
+        301: ["Moved Permanently", "Redirect", "The address changed for good. Check for an outdated link or bookmark."],
+        302: ["Found", "Redirect", "Temporary redirect. Repeated loops point to cookie or session problems."],
+        304: ["Not Modified", "Redirect", "Browser used its cached copy. Ask for a hard refresh or cleared cache."],
+        400: ["Bad Request", "Client error", "The server rejected the request format. Check the input, then the payload in DevTools Network."],
+        401: ["Unauthorized", "Client error", "Not signed in or the session expired. Check login state, token and cookies."],
+        403: ["Forbidden", "Client error", "Signed in but not allowed. Check account role, permissions or region limits."],
+        404: ["Not Found", "Client error", "Wrong URL or removed resource. Verify the link and whether the record exists."],
+        405: ["Method Not Allowed", "Client error", "Wrong HTTP method for this endpoint. Compare with the API docs."],
+        408: ["Request Timeout", "Client error", "The request took too long. Check connection, VPN and retry."],
+        409: ["Conflict", "Client error", "State conflict, such as a duplicate. Look for an existing record or double submit."],
+        422: ["Unprocessable Entity", "Client error", "Format is valid but data fails validation. Read the error fields in the JSON response."],
+        429: ["Too Many Requests", "Client error", "Rate limit hit. Ask the customer to wait, and check for loops or bots."],
+        500: ["Internal Server Error", "Server error", "Bug on the server side. Collect the time, request ID and steps, then escalate."],
+        502: ["Bad Gateway", "Server error", "A proxy got a bad answer from upstream. Check status page, then escalate."],
+        503: ["Service Unavailable", "Server error", "Service overloaded or in maintenance. Check status page and known incidents."],
+        504: ["Gateway Timeout", "Server error", "Upstream did not answer in time. Retry once, then escalate with timestamps."]
+      },
+      note: "BUG REPORT\n\nTitle:\n  Short summary of the problem\n\nEnvironment:\n  Browser / version:\n  OS / device:\n  Account ID:\n  Date and time (with timezone):\n\nSteps to reproduce:\n  1.\n  2.\n  3.\n\nExpected result:\n\nActual result:\n\nDevTools evidence:\n  Request URL:\n  Status code:\n  Response body / error:\n  Console error:\n\nImpact:\n  How many users, how severe, workaround?\n\nAttachments:\n  Screenshot / HAR / video\n",
+      copy: "Copy template", copied: "Copied", copy_fail: "Select the text and copy manually",
+      c_h: "Get in touch", c_p: "Open to remote Customer Support, Technical Support L1, iGaming and operations roles.", c_mail: "Email", c_tg: "Telegram", c_copy: "Copy",
+      c_note: "Resume is available in Russian and English on request.",
+      theme_h: "Choose a color scheme", themes: { cyberpunk: "Cyberpunk", classic: "Windows Standard (default)", lilac: "Lilac", forest: "Forest Green" },
+      menu_about: "About Me", shut: "Shut Down...", shut_t: "Shut Down", shut_p: "Thanks for visiting. It is now safe to close this tab.", shut_b: "Restart",
+      pong_h: "Mouse, touch or ↑ ↓"
+    },
+    ru: {
+      t_about: "Обо мне", t_exp: "Опыт работы", t_skills: "Навыки", t_pong: "Pong", s_pong: "Pong", t_tools: "HTTP-справочник", t_notes: "bug_report.txt", t_player: "Плеер", t_contact: "Контакты", t_themes: "Свойства экрана",
+      s_about: "Обо мне", s_exp: "Опыт", s_skills: "Навыки", s_tools: "HTTP-справочник", s_notes: "Баг-репорт", s_player: "Плеер", s_contact: "Контакты", s_themes: "Темы",
+      name: "Егор Годенов", role: "Клиентская поддержка · Техподдержка L1 · iGaming и операции",
+      sum: ["Специалист по клиентской поддержке и операционным процессам с опытом в банкинге, iGaming и performance-маркетинге. Отвечаю клиентам, решаю вопросы по аккаунтам и платежам, документирую кейсы, эскалирую сложные случаи и помогаю внутренним командам с доступами и операционными запросами.",
+            "Развиваю навыки технической диагностики: DevTools в браузере, HTTP, REST API, JSON и основы SQL. Цель: Technical Support L1 или более техническая роль в международной компании."],
+      k_loc: "Локация", k_lang: "Языки", k_sched: "График", k_work: "Ищу",
+      v_loc: "Да Нанг, Вьетнам", v_lang: "Русский (родной), английский (B1–B2)", v_sched: "Удалённо, сменный график и ночные смены", v_work: "Support L1, iGaming, операционная поддержка",
+      mood: "сейчас играет:",
+      jobs: [
+        { r: "Специалист по внутренней поддержке операций", o: "Конфиденциальная performance-маркетинговая команда", y: "2025–2026", i: [
+          "Поддерживал ежедневные процессы медиабайинга, аккаунт-менеджмента и дизайна",
+          "Обрабатывал запросы на выдачу и замену аккаунтов, настройку прав доступа",
+          "Решал проблемы с распределением аккаунтов, доступами и доступностью ресурсов",
+          "Работал во внутренних админ-панелях с аккаунтами и операционными запросами",
+          "Обеспечивал команды аккаунтами, инструментами и дизайн-ресурсами",
+          "Закрывал внутренние запросы нескольких отделов, поддерживал непрерывность работы",
+          "Закупал расходные материалы для операционных нужд"] },
+        { r: "Специалист поддержки клиентов, iGaming", o: "Конфиденциальный iGaming-проект", y: "2022–2024", i: [
+          "Консультировал клиентов в онлайн-чате и по телефону",
+          "Решал вопросы по аккаунтам, депозитам, платежам и незачисленным транзакциям",
+          "Объяснял акции, промокоды и специальные предложения",
+          "Участвовал в реактивации клиентов и помогал разобраться в предложениях",
+          "Расследовал проблемы и собирал данные для определения причины",
+          "Создавал и эскалировал внутренние запросы для углублённого разбора",
+          "Постепенно брал более технические кейсы по аккаунтам и платформе"] },
+        { r: "Специалист банковской поддержки", o: "Тинькофф Банк", y: "2021–2022", i: [
+          "Начинал с тёплых лидов: объяснял условия и преимущества эквайринга для бизнеса",
+          "Перешёл в поддержку клиентов в онлайн-чате",
+          "Консультировал по заявкам, банковским и кредитным картам, Тинькофф Бизнесу",
+          "Работал по регламентам и внутренним процессам банка"] }
+      ],
+      groups: [
+        { n: "Клиентская поддержка", c: ["Работа с тикетами", "Коммуникация с клиентами", "Документирование кейсов", "Эскалация", "Основы CRM и helpdesk"] },
+        { n: "Техническая диагностика", c: ["Chrome DevTools: Console, Network", "Коды ответов HTTP", "Кэш и cookies браузера", "Анализ ошибок"] },
+        { n: "API и данные", c: ["REST API", "JSON", "Postman", "Основы SQL"] },
+        { n: "Операции", c: ["Внутренние админ-панели", "Управление аккаунтами и доступами", "Google Sheets / Excel", "Кросс-командные запросы"] },
+        { n: "Документация и инструменты", c: ["Jira", "Статьи базы знаний", "Slack", "Telegram", "Discord"] },
+        { n: "AI в работе", c: ["Технический ресёрч", "Разбор ошибок", "Черновики ответов", "Структурированные баг-репорты"] }
+      ],
+      strengths_h: "Сильные стороны",
+      strengths: ["Чёткая письменная коммуникация", "Структурный подход к проблемам", "Внимание к деталям", "Быстро учусь", "Спокоен с клиентами", "Работаю с разными командами"],
+      http_h: "Справочник кодов HTTP", http_p: "Введите код ответа, чтобы увидеть, что он значит и что проверить в поддержке в первую очередь.", http_btn: "Найти",
+      http_none: "Неизвестный код. Попробуйте кнопки ниже.",
+      http: {
+        200: ["OK", "Успех", "Запрос выполнен. Если клиент всё равно жалуется, сравните ожидание и то, что видно на странице."],
+        201: ["Created", "Успех", "Запись создана. Убедитесь, что она появилась в аккаунте или админ-панели."],
+        204: ["No Content", "Успех", "Действие выполнено без тела ответа. Отсутствие данных здесь нормально."],
+        301: ["Moved Permanently", "Редирект", "Адрес изменился навсегда. Проверьте устаревшую ссылку или закладку."],
+        302: ["Found", "Редирект", "Временный редирект. Зацикливание указывает на проблемы с cookie или сессией."],
+        304: ["Not Modified", "Редирект", "Браузер взял страницу из кэша. Попросите жёсткое обновление или очистку кэша."],
+        400: ["Bad Request", "Ошибка клиента", "Сервер отклонил формат запроса. Проверьте ввод, затем payload во вкладке Network."],
+        401: ["Unauthorized", "Ошибка клиента", "Нет авторизации или сессия истекла. Проверьте вход, токен и cookies."],
+        403: ["Forbidden", "Ошибка клиента", "Вход есть, прав нет. Проверьте роль аккаунта, разрешения и региональные ограничения."],
+        404: ["Not Found", "Ошибка клиента", "Неверный адрес или ресурс удалён. Проверьте ссылку и существование записи."],
+        405: ["Method Not Allowed", "Ошибка клиента", "Неверный HTTP-метод для этого эндпоинта. Сверьтесь с документацией API."],
+        408: ["Request Timeout", "Ошибка клиента", "Запрос слишком долгий. Проверьте соединение, VPN и повторите."],
+        409: ["Conflict", "Ошибка клиента", "Конфликт состояния, например дубликат. Ищите существующую запись или двойную отправку."],
+        422: ["Unprocessable Entity", "Ошибка клиента", "Формат верный, но данные не проходят валидацию. Прочитайте поля ошибок в JSON."],
+        429: ["Too Many Requests", "Ошибка клиента", "Превышен лимит запросов. Попросите подождать, проверьте циклы и ботов."],
+        500: ["Internal Server Error", "Ошибка сервера", "Баг на стороне сервера. Соберите время, ID запроса и шаги, затем эскалируйте."],
+        502: ["Bad Gateway", "Ошибка сервера", "Прокси получил плохой ответ от upstream. Проверьте статус-страницу и эскалируйте."],
+        503: ["Service Unavailable", "Ошибка сервера", "Сервис перегружен или на обслуживании. Проверьте статус-страницу и известные инциденты."],
+        504: ["Gateway Timeout", "Ошибка сервера", "Upstream не ответил вовремя. Повторите один раз, затем эскалируйте с временными метками."]
+      },
+      note: "БАГ-РЕПОРТ\n\nЗаголовок:\n  Короткое описание проблемы\n\nОкружение:\n  Браузер / версия:\n  ОС / устройство:\n  ID аккаунта:\n  Дата и время (с часовым поясом):\n\nШаги воспроизведения:\n  1.\n  2.\n  3.\n\nОжидаемый результат:\n\nФактический результат:\n\nДанные из DevTools:\n  URL запроса:\n  Код ответа:\n  Тело ответа / ошибка:\n  Ошибка в Console:\n\nВлияние:\n  Сколько пользователей, насколько критично, есть ли обходной путь?\n\nВложения:\n  Скриншот / HAR / видео\n",
+      copy: "Копировать шаблон", copied: "Скопировано", copy_fail: "Выделите текст и скопируйте вручную",
+      c_h: "Связаться", c_p: "Открыт к удалённым ролям: клиентская поддержка, Technical Support L1, iGaming и операционная поддержка.", c_mail: "Email", c_tg: "Telegram", c_copy: "Копировать",
+      c_note: "Резюме на русском и английском отправлю по запросу.",
+      theme_h: "Выберите цветовую схему", themes: { cyberpunk: "Киберпанк", classic: "Windows Standard (по умолчанию)", lilac: "Сирень", forest: "Лесной зелёный" },
+      menu_about: "Обо мне", shut: "Завершение работы...", shut_t: "Завершение работы", shut_p: "Спасибо за визит. Теперь вкладку можно закрыть.", shut_b: "Перезагрузить",
+      pong_h: "Мышь, касание или ↑ ↓"
+    }
+  };
+
+  var TRACKS = [
+    { t: "sleep mode (prod. cry 4 me)", a: "", f: "audio/sleep_mode.mp3" },
+    { t: "who's ready for tomorrow", a: "Rat Boy & IBDY · Cyberpunk: Edgerunners OST", f: "audio/whos_ready_for_tomorrow.mp3" },
+    { t: "one way ticket", a: "", f: "audio/one_way_ticket.mp3" }
+  ];
+
+  var EMAIL = "godenovegor@gmail.com", TG = "@bobombob";
+
+  function $(s, r) { return (r || document).querySelector(s); }
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+
+  var lang = store("g-lang") || ((navigator.language || "en").slice(0, 2) === "ru" ? "ru" : "en");
+  if (!D[lang]) lang = "en";
+  var T = function (k) { return D[lang][k]; };
+
+  /* ---------- window manager ---------- */
+  var z = 100, active = null, wins = {};
+  function initWindows() {
+    var icons = $("#icons"), menuItems = $("#menuitems");
+    APPS.forEach(function (a) {
+      var w = $("#w-" + a.id); wins[a.id] = w;
+      var bar = el("div", "bar", svg(a.icon) + '<span class="ttl"></span>');
+      var min = el("button", "wb", "_"), max = el("button", "wb", "□"), cls = el("button", "wb", "×");
+      min.setAttribute("aria-label", "Minimize"); max.setAttribute("aria-label", "Maximize"); cls.setAttribute("aria-label", "Close");
+      bar.appendChild(min); bar.appendChild(max); bar.appendChild(cls);
+      w.insertBefore(bar, w.firstChild);
+      min.onclick = function (e) { e.stopPropagation(); minimize(a.id); };
+      max.onclick = function (e) { e.stopPropagation(); w.classList.toggle("max"); focusWin(a.id); };
+      cls.onclick = function (e) { e.stopPropagation(); closeWin(a.id); };
+      bar.addEventListener("dblclick", function (e) { if (!e.target.closest(".wb")) w.classList.toggle("max"); });
+      w.addEventListener("pointerdown", function () { focusWin(a.id); });
+      drag(w, bar);
+
+      var ic = el("button", "icon", svg(a.icon) + '<span data-s="' + a.id + '"></span>');
+      ic.onclick = function () { openWin(a.id); };
+      icons.appendChild(ic);
+
+      var mi = el("button", "", svg(a.icon) + '<span data-s="' + a.id + '"></span>');
+      mi.onclick = function () { openWin(a.id); };
+      menuItems.appendChild(mi);
+    });
+    menuItems.appendChild(el("hr"));
+    var sd = el("button", "", svg("power") + '<span data-i="shut"></span>');
+    sd.onclick = function () { closeMenu(); $("#shut").classList.add("open"); };
+    menuItems.appendChild(sd);
+  }
+  function drag(w, bar) {
+    var sx, sy, ox, oy, on = false;
+    bar.addEventListener("pointerdown", function (e) {
+      if (e.target.closest(".wb") || w.classList.contains("max") || window.innerWidth <= 700) return;
+      on = true; sx = e.clientX; sy = e.clientY; ox = w.offsetLeft; oy = w.offsetTop;
+      bar.setPointerCapture(e.pointerId);
+    });
+    bar.addEventListener("pointermove", function (e) {
+      if (!on) return;
+      var d = $("#desktop"), nx = ox + e.clientX - sx, ny = oy + e.clientY - sy;
+      nx = Math.max(-w.offsetWidth + 80, Math.min(nx, d.clientWidth - 80));
+      ny = Math.max(0, Math.min(ny, d.clientHeight - 30));
+      w.style.setProperty("--x", nx + "px"); w.style.setProperty("--y", ny + "px");
+    });
+    function end() { on = false; }
+    bar.addEventListener("pointerup", end); bar.addEventListener("pointercancel", end);
+  }
+  function openWin(id) {
+    var w = wins[id]; w.classList.add("open"); closeMenu(); focusWin(id); renderTasks();
+    if (id === "player") ensureTrack();
+  }
+  function closeWin(id) {
+    wins[id].classList.remove("open", "active", "max");
+    if (active === id) active = null;
+    renderTasks();
+  }
+  function minimize(id) { wins[id].classList.remove("open", "active"); wins[id].dataset.min = "1"; if (active === id) active = null; renderTasks(); }
+  function focusWin(id) {
+    active = id; wins[id].classList.add("open"); delete wins[id].dataset.min;
+    Object.keys(wins).forEach(function (k) { wins[k].classList.toggle("active", k === id); });
+    wins[id].style.zIndex = ++z; renderTasks();
+  }
+  function renderTasks() {
+    var box = $("#tasks"); box.innerHTML = "";
+    APPS.forEach(function (a) {
+      var w = wins[a.id];
+      if (!w.classList.contains("open") && !w.dataset.min) return;
+      var b = el("button", "btn" + (active === a.id ? " on" : ""), esc(T("s_" + a.id)));
+      b.onclick = function () { if (active === a.id && w.classList.contains("open")) minimize(a.id); else focusWin(a.id); };
+      box.appendChild(b);
+    });
+  }
+  function closeMenu() { $("#menu").classList.remove("open"); $("#start").classList.remove("on"); }
+
+  /* ---------- content ---------- */
+  var photoSrc = "";
+  function renderAbout() {
+    var d = D[lang];
+    var tags = d.sum ? "" : "";
+    $("#about").innerHTML =
+      '<div class="about"><div><div class="photo" id="photo"><img src="' + photoSrc + '" alt="' + esc(d.name) + '"></div></div>' +
+      '<div><h2>' + esc(d.name) + '</h2><div class="mono muted" style="margin-bottom:10px">' + esc(d.role) + '</div>' +
+      d.sum.map(function (p) { return "<p>" + esc(p) + "</p>"; }).join("") +
+      '<dl class="kv"><dt>' + d.k_loc + '</dt><dd>' + esc(d.v_loc) + '</dd><dt>' + d.k_lang + '</dt><dd>' + esc(d.v_lang) + '</dd><dt>' + d.k_sched + '</dt><dd>' + esc(d.v_sched) + '</dd><dt>' + d.k_work + '</dt><dd>' + esc(d.v_work) + '</dd></dl></div></div>';
+    $("#photo").onclick = function () {};
+  }
+  function renderExp() {
+    $("#exp").innerHTML = D[lang].jobs.map(function (j, i) {
+      return '<details class="job"' + (i === 0 ? " open" : "") + '><summary><b>' + esc(j.r) + '</b><span>' + esc(j.o) + ' · ' + j.y + '</span></summary><ul>' +
+        j.i.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul></details>";
+    }).join("");
+  }
+  function renderSkills() {
+    var d = D[lang];
+    $("#skills").innerHTML = d.groups.map(function (g) {
+      return '<div class="grp"><h3 style="margin-top:0">' + esc(g.n) + '</h3><div class="chips">' + g.c.map(function (c) { return '<span class="chip">' + esc(c) + "</span>"; }).join("") + "</div></div>";
+    }).join("") + '<div class="grp"><h3>' + d.strengths_h + '</h3><div class="chips">' + d.strengths.map(function (c) { return '<span class="chip">' + esc(c) + "</span>"; }).join("") + "</div></div>";
+  }
+  function renderContact() {
+    var d = D[lang];
+    function line(label, val) { return '<div class="muted mono" style="margin-bottom:2px">' + label + '</div><div class="copyline"><div class="inset">' + esc(val) + '</div><button class="btn" data-copy="' + esc(val) + '">' + d.c_copy + "</button></div>"; }
+    $("#contact").innerHTML = '<h2>' + d.c_h + '</h2><p>' + d.c_p + "</p>" + line(d.c_mail, EMAIL) + line(d.c_tg, TG) +
+      '<p class="muted">' + d.c_note + "</p>";
+    Array.prototype.forEach.call($("#contact").querySelectorAll("[data-copy]"), function (b) {
+      b.onclick = function () { copyText(b.getAttribute("data-copy"), b, d.c_copy); };
+    });
+  }
+  function copyText(text, btn, orig) {
+    function done(ok) { btn.textContent = ok ? T("copied") : T("copy_fail"); setTimeout(function () { btn.textContent = orig; }, 1600); }
+    try { navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); }); } catch (e) { done(false); }
+  }
+  function renderThemes() {
+    var cur = document.documentElement.getAttribute("data-theme") || "classic";
+    var sw = { classic: "linear-gradient(90deg,#000080,#1084d0)", cyberpunk: "linear-gradient(90deg,#ff2a6d,#5b2bb0,#00d9e8)", lilac: "linear-gradient(90deg,#9370db,#663399)", forest: "linear-gradient(90deg,#1f7a3a,#0b4d22)" };
+    var box = $("#themelist"); box.innerHTML = "";
+    Object.keys(sw).forEach(function (k) {
+      var l = el("label", "opt", '<input type="radio" name="theme" value="' + k + '"' + (k === cur ? " checked" : "") + '><span class="swatch" style="background:' + sw[k] + '"></span><span>' + esc(T("themes")[k]) + "</span>");
+      l.querySelector("input").onchange = function () { setTheme(k); };
+      box.appendChild(l);
+    });
+  }
+  function setTheme(k) { if (k === "classic") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", k); store("g-theme", k); }
+
+  /* http lookup */
+  function showCode(c) {
+    var d = D[lang], r = d.http[c], out = $("#result");
+    if (!r) { out.innerHTML = '<span class="muted">' + d.http_none + "</span>"; return; }
+    out.innerHTML = '<div class="code">' + c + '</div><div style="font-weight:600;margin:6px 0 0">' + r[0] + '</div><div class="cls">' + r[1] + '</div><p style="margin:8px 0 0">' + r[2] + "</p>";
+  }
+  function renderTools() {
+    var q = $("#quick"); q.innerHTML = "";
+    Object.keys(D[lang].http).forEach(function (c) { var b = el("button", "btn", c); b.onclick = function () { $("#code").value = c; showCode(c); }; q.appendChild(b); });
+    var v = $("#code").value || "404"; if (!$("#code").value) $("#code").value = v; showCode(v);
+  }
+
+  /* i18n */
+  function applyLang() {
+    document.documentElement.lang = lang;
+    Array.prototype.forEach.call(document.querySelectorAll("[data-i]"), function (n) { n.textContent = T(n.getAttribute("data-i")); });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-s]"), function (n) { n.textContent = T("s_" + n.getAttribute("data-s")); });
+    APPS.forEach(function (a) { $(".ttl", wins[a.id]).textContent = T("t_" + a.id); });
+    var note = $("#note"); if (!note.dataset.edited) note.value = T("note");
+    $("#lang").textContent = lang === "ru" ? "RU" : "EN";
+    renderAbout(); renderExp(); renderSkills(); renderContact(); renderThemes(); renderTools(); renderTasks(); renderPlaylist(); updateNow();
+  }
+
+  /* ---------- player ---------- */
+  var audio, idx = 0, ctx, analyser, data, raf;
+  function fmt(s) { if (!isFinite(s)) return "0:00"; s = Math.floor(s); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+  function renderPlaylist() {
+    var ul = $("#playlist"); ul.innerHTML = "";
+    TRACKS.forEach(function (t, i) {
+      var li = el("li"), b = el("button", "", '<span class="n">' + String(i + 1).padStart(2, "0") + "</span><span>" + esc(t.t) + "</span>");
+      b.setAttribute("aria-current", i === idx ? "true" : "false");
+      b.onclick = function () { load(i); play(); };
+      li.appendChild(b); ul.appendChild(li);
+    });
+  }
+  function updateNow() {
+    var t = TRACKS[idx]; $("#now").textContent = (audio && !audio.paused ? "▶ " : "■ ") + t.t + (t.a ? " — " + t.a : "");
+    $("#play").textContent = audio && !audio.paused ? "❚❚" : "▶";
+  }
+  function ensureTrack() { if (!audio.src) load(idx); }
+  function load(i) { idx = i; audio.src = TRACKS[i].f; renderPlaylist(); updateNow(); $("#cur").textContent = "0:00"; $("#dur").textContent = "0:00"; $("#seek").value = 0; }
+  function play() {
+    ensureTrack();
+    if (!ctx) {
+      try {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = ctx.createAnalyser(); analyser.fftSize = 128; data = new Uint8Array(analyser.frequencyBinCount);
+        var src = ctx.createMediaElementSource(audio); src.connect(analyser); analyser.connect(ctx.destination);
+      } catch (e) { ctx = null; analyser = null; }
+    }
+    if (ctx && ctx.state === "suspended") ctx.resume();
+    var p = audio.play(); if (p && p.catch) p.catch(function () { updateNow(); });
+  }
+  function initPlayer() {
+    audio = $("#audio"); audio.volume = .8;
+    $("#play").onclick = function () { if (audio.paused) play(); else audio.pause(); };
+    $("#prev").onclick = function () { var w = !audio.paused; load((idx + TRACKS.length - 1) % TRACKS.length); if (w) play(); };
+    $("#next").onclick = function () { var w = !audio.paused; load((idx + 1) % TRACKS.length); if (w) play(); };
+    $("#vol").oninput = function (e) { audio.volume = e.target.value / 100; };
+    $("#seek").oninput = function (e) { if (audio.duration) audio.currentTime = audio.duration * e.target.value / 1000; };
+    audio.addEventListener("timeupdate", function () { $("#cur").textContent = fmt(audio.currentTime); if (audio.duration) $("#seek").value = audio.currentTime / audio.duration * 1000; });
+    audio.addEventListener("loadedmetadata", function () { $("#dur").textContent = fmt(audio.duration); });
+    audio.addEventListener("play", updateNow); audio.addEventListener("pause", updateNow);
+    audio.addEventListener("ended", function () { load((idx + 1) % TRACKS.length); play(); });
+    load(0);
+    var cv = $("#viz"), g = cv.getContext("2d"), t0 = 0;
+    function draw(ts) {
+      raf = requestAnimationFrame(draw);
+      if (!wins.player.classList.contains("open")) return;
+      var W = cv.width, H = cv.height, n = 32, bw = W / n; g.fillStyle = "#04080a"; g.fillRect(0, 0, W, H);
+      var live = analyser && !audio.paused; if (live) analyser.getByteFrequencyData(data);
+      for (var i = 0; i < n; i++) {
+        var v = live ? data[i + 1] / 255 : (audio.paused ? .06 : .3 + .25 * Math.sin(ts / 220 + i));
+        var h = Math.max(2, v * H); g.fillStyle = i % 3 === 0 ? "#ff2a6d" : "#00f0ff"; g.fillRect(i * bw + 1, H - h, bw - 2, h);
+      }
+    }
+    raf = requestAnimationFrame(draw);
+  }
+
+  /* ---------- pong ---------- */
+  function initPong() {
+    var c = $("#pongc"), g = c.getContext("2d"), W = c.width, H = c.height, ph = 54, pw = 8;
+    var py = H / 2 - ph / 2, ay = py, bx, by, vx, vy, ps = 0, as = 0;
+    function reset(dir) { bx = W / 2; by = H / 2; vx = 3.2 * dir; vy = (Math.random() * 2 - 1) * 2; }
+    reset(1);
+    function setY(clientY) { var r = c.getBoundingClientRect(); py = Math.max(0, Math.min(H - ph, (clientY - r.top) / r.height * H - ph / 2)); }
+    c.addEventListener("pointermove", function (e) { setY(e.clientY); });
+    c.addEventListener("pointerdown", function (e) { setY(e.clientY); });
+    document.addEventListener("keydown", function (e) {
+      if (active !== "pong") return;
+      if (e.key === "ArrowUp") { py = Math.max(0, py - 18); e.preventDefault(); }
+      if (e.key === "ArrowDown") { py = Math.min(H - ph, py + 18); e.preventDefault(); }
+    });
+    function step() {
+      requestAnimationFrame(step);
+      if (!wins.pong.classList.contains("open")) return;
+      bx += vx; by += vy;
+      if (by < 4 || by > H - 4) vy = -vy;
+      ay += Math.max(-2.6, Math.min(2.6, (by - ph / 2 - ay) * .12));
+      ay = Math.max(0, Math.min(H - ph, ay));
+      if (vx < 0 && bx < 18 + pw && bx > 10 && by > py && by < py + ph) { vx = Math.min(8, -vx * 1.06); vy += ((by - py) / ph - .5) * 4; }
+      if (vx > 0 && bx > W - 18 - pw && bx < W - 10 && by > ay && by < ay + ph) { vx = -vx * 1.04; vy += ((by - ay) / ph - .5) * 3; }
+      if (bx < 0) { as++; reset(1); } if (bx > W) { ps++; reset(-1); }
+      $("#pongscore").textContent = ps + " : " + as;
+      g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+      g.fillStyle = "#555"; for (var y = 0; y < H; y += 16) g.fillRect(W / 2 - 1, y, 2, 8);
+      g.fillStyle = "#fff"; g.fillRect(10, py, pw, ph); g.fillRect(W - 10 - pw, ay, pw, ph); g.fillRect(bx - 4, by - 4, 8, 8);
+    }
+    requestAnimationFrame(step);
+  }
+
+  /* ---------- boot ---------- */
+  function clock() { var d = new Date(); $("#clock").textContent = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+  function boot() {
+    var th = store("g-theme"); if (th && th !== "classic") setTheme(th);
+    photoSrc = PHOTO_URL;
+    initWindows(); initPlayer(); initPong();
+    $("#lookup").onclick = function () { showCode($("#code").value.trim()); };
+    $("#code").onkeydown = function (e) { if (e.key === "Enter") showCode(this.value.trim()); };
+    $("#note").oninput = function () { this.dataset.edited = "1"; };
+    $("#copynote").onclick = function () { var b = this; copyText($("#note").value, b, T("copy")); };
+    $("#lang").onclick = function () { lang = lang === "ru" ? "en" : "ru"; store("g-lang", lang); applyLang(); };
+    $("#start").onclick = function (e) { e.stopPropagation(); var m = $("#menu"); m.classList.toggle("open"); this.classList.toggle("on", m.classList.contains("open")); };
+    document.addEventListener("pointerdown", function (e) { if (!e.target.closest("#menu") && !e.target.closest("#start")) closeMenu(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeMenu(); $("#shut").classList.remove("open"); } });
+    $("#restart").onclick = function () { $("#shut").classList.remove("open"); };
+    applyLang(); clock(); setInterval(clock, 10000);
+    openWin("about");
+  }
+  boot();
+})();
+</script>
